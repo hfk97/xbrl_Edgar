@@ -82,7 +82,17 @@ def SECdownload(year, month):
 		os.makedirs( "sec/" + str(year) )
 	if not os.path.exists( "sec/" + str(year) + '/' + str(month).zfill(2) ):
 		os.makedirs( "sec/" + str(year) + '/' + str(month).zfill(2) )
-	target_dir = "sec/" + str(year) + '/' + str(month).zfill(2) + '/'
+	if not os.path.exists( "sec/" + str(year) + '/' + str(month).zfill(2) + '/10-K' ):
+		os.makedirs( "sec/" + str(year) + '/' + str(month).zfill(2) + '/10-K')
+	if not os.path.exists( "sec/" + str(year) + '/' + str(month).zfill(2) + '/10-Q' ):
+		os.makedirs( "sec/" + str(year) + '/' + str(month).zfill(2) + '/10-Q')
+
+	target_dir_10K = "sec/" + str(year) + '/' + str(month).zfill(2) + '/10-K/'
+	target_dir_10Q = "sec/" + str(year) + '/' + str(month).zfill(2) + '/10-Q/'
+
+	tenk=re.compile("10-K(//A)?")
+	tenq=re.compile("10-Q(//A)?")
+
 	try:
 		feedFile = urlopen( edgarFilingsFeed )
 		try:
@@ -122,12 +132,20 @@ def SECdownload(year, month):
 			try:
 				# Identify ZIP file enclosure, if available
 				enclosures = [ l for l in item[ "links" ] if l[ "rel" ] == "enclosure" ]
-				if ( len( enclosures ) > 0 ):
+				if (len( enclosures ) > 0 ):
 					# ZIP file enclosure exists, so we can just download the ZIP file
 					enclosure = enclosures[0]
 					sourceurl = enclosure[ "href" ]
 					cik = item[ "edgar_ciknumber" ]
-					targetfname = target_dir+cik+'-'+sourceurl.split('/')[-1]
+
+					if tenk.match(item["summary"]) is not None:
+						targetfname = target_dir_10K+cik+'-'+sourceurl.split('/')[-1]
+					if tenq.match(item["summary"]) is not None:
+						targetfname = target_dir_10Q+cik+'-'+sourceurl.split('/')[-1]
+					else:
+						print("Error matching target dir")
+						pass
+
 					retry_counter = 3
 					while retry_counter > 0:
 						good_read = downloadfile( sourceurl, targetfname )
@@ -141,7 +159,15 @@ def SECdownload(year, month):
 					linkname = item[ "link" ].split('/')[-1]
 					linkbase = os.path.splitext(linkname)[0]
 					cik = item[ "edgar_ciknumber" ]
-					zipfname = target_dir+cik+'-'+linkbase+"-xbrl.zip"
+
+					if tenk.match(item["summary"]) is not None:
+						zipfname = target_dir_10K+cik+'-'+linkbase+"-xbrl.zip"
+					if tenq.match(item["summary"]) is not None:
+						zipfname = target_dir_10Q+cik+'-'+linkbase+"-xbrl.zip"
+					else:
+						print("Error matching target dir")
+						pass
+
 					if os.path.isfile( zipfname ):
 						print( "Local copy already exists" )
 					else:
@@ -150,14 +176,34 @@ def SECdownload(year, month):
 						xbrlFiling = currentItem.find( "edgar:xbrlFiling", edgarNamespace )
 						xbrlFilesItem = xbrlFiling.find( "edgar:xbrlFiles", edgarNamespace )
 						xbrlFiles = xbrlFilesItem.findall( "edgar:xbrlFile", edgarNamespace )
-						if not os.path.exists(  target_dir+"temp" ):
-							os.makedirs( target_dir+"temp" )
+
+						if tenk.match(item["summary"]) is not None:
+							if not os.path.exists(target_dir_10K + "temp"):
+								os.makedirs(target_dir_10K + "temp")
+						if tenq.match(item["summary"]) is not None:
+							if not os.path.exists(target_dir_10Q + "temp"):
+								os.makedirs(target_dir_10Q + "temp")
+						else:
+							print("Error matching target dir")
+							pass
+
+
+
 						zf = zipfile.ZipFile( zipfname, "w" )
 						try:
 							for xf in xbrlFiles:
 								xfurl = xf.get( "{http://www.sec.gov/Archives/edgar}url" )
 								if xfurl.endswith( (".xml",".xsd") ):
-									targetfname = target_dir+"temp/"+xfurl.split('/')[-1]
+
+									if tenk.match(item["summary"]) is not None:
+										targetfname = target_dir_10K+"temp/"+xfurl.split('/')[-1]
+									if tenq.match(item["summary"]) is not None:
+										targetfname = target_dir_10Q+"temp/"+xfurl.split('/')[-1]
+									else:
+										print("Error matching target dir")
+										pass
+
+
 									retry_counter = 3
 									while retry_counter > 0:
 										good_read = downloadfile( xfurl, targetfname )
@@ -170,7 +216,16 @@ def SECdownload(year, month):
 									os.remove( targetfname )
 						finally:
 							zf.close()
-							os.rmdir( target_dir+"temp" )
+
+							if tenk.match(item["summary"]) is not None:
+								os.rmdir(target_dir_10K+"temp" )
+							if tenq.match(item["summary"]) is not None:
+								os.rmdir(target_dir_10Q+"temp" )
+							else:
+								print("Error matching target dir")
+								pass
+
+
 			except KeyError as e:
 				print( "Key Error:", e )
 			finally:
