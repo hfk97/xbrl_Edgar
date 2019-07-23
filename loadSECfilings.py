@@ -34,6 +34,7 @@ from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 import xml.etree.ElementTree as ET
 import zipfile
+import re
 zlib=getpack("zlib")
 feedparser=getpack("feedparser")
 
@@ -113,71 +114,75 @@ def SECdownload(year, month):
 		print( "Key Error:", e )
 	# Process RSS feed and walk through all items contained
 	for item in feed.entries:
-		print( item[ "summary" ], item[ "title" ], item[ "published" ] )
-		try:
-			# Identify ZIP file enclosure, if available
-			enclosures = [ l for l in item[ "links" ] if l[ "rel" ] == "enclosure" ]
-			if ( len( enclosures ) > 0 ):
-				# ZIP file enclosure exists, so we can just download the ZIP file
-				enclosure = enclosures[0]
-				sourceurl = enclosure[ "href" ]
-				cik = item[ "edgar_ciknumber" ]
-				targetfname = target_dir+cik+'-'+sourceurl.split('/')[-1]
-				retry_counter = 3
-				while retry_counter > 0:
-					good_read = downloadfile( sourceurl, targetfname )
-					if good_read:
-						break
-					else:
-						print( "Retrying:", retry_counter )
-						retry_counter -= 1
-			else:
-				# We need to manually download all XBRL files here and ZIP them ourselves...
-				linkname = item[ "link" ].split('/')[-1]
-				linkbase = os.path.splitext(linkname)[0]
-				cik = item[ "edgar_ciknumber" ]
-				zipfname = target_dir+cik+'-'+linkbase+"-xbrl.zip"
-				if os.path.isfile( zipfname ):
-					print( "Local copy already exists" )
+
+		forms=re.compile("10-[K,Q](//A)?")
+
+		if forms.match(item["summary"]) is not None:
+			print(item["summary"], item["title"], item["published"])
+			try:
+				# Identify ZIP file enclosure, if available
+				enclosures = [ l for l in item[ "links" ] if l[ "rel" ] == "enclosure" ]
+				if ( len( enclosures ) > 0 ):
+					# ZIP file enclosure exists, so we can just download the ZIP file
+					enclosure = enclosures[0]
+					sourceurl = enclosure[ "href" ]
+					cik = item[ "edgar_ciknumber" ]
+					targetfname = target_dir+cik+'-'+sourceurl.split('/')[-1]
+					retry_counter = 3
+					while retry_counter > 0:
+						good_read = downloadfile( sourceurl, targetfname )
+						if good_read:
+							break
+						else:
+							print( "Retrying:", retry_counter )
+							retry_counter -= 1
 				else:
-					edgarNamespace = {'edgar': 'http://www.sec.gov/Archives/edgar'}
-					currentItem = list(root.iter( "item" ))[itemIndex]
-					xbrlFiling = currentItem.find( "edgar:xbrlFiling", edgarNamespace )
-					xbrlFilesItem = xbrlFiling.find( "edgar:xbrlFiles", edgarNamespace )
-					xbrlFiles = xbrlFilesItem.findall( "edgar:xbrlFile", edgarNamespace )
-					if not os.path.exists(  target_dir+"temp" ):
-						os.makedirs( target_dir+"temp" )
-					zf = zipfile.ZipFile( zipfname, "w" )
-					try:
-						for xf in xbrlFiles:
-							xfurl = xf.get( "{http://www.sec.gov/Archives/edgar}url" )
-							if xfurl.endswith( (".xml",".xsd") ):
-								targetfname = target_dir+"temp/"+xfurl.split('/')[-1]
-								retry_counter = 3
-								while retry_counter > 0:
-									good_read = downloadfile( xfurl, targetfname )
-									if good_read:
-										break
-									else:
-										print( "Retrying:", retry_counter )
-										retry_counter -= 1
-								zf.write( targetfname, xfurl.split('/')[-1], zipfile.ZIP_DEFLATED )
-								os.remove( targetfname )
-					finally:
-						zf.close()
-						os.rmdir( target_dir+"temp" )
-		except KeyError as e:
-			print( "Key Error:", e )
-		finally:
-			print( "----------" )
-		itemIndex += 1
+					# We need to manually download all XBRL files here and ZIP them ourselves...
+					linkname = item[ "link" ].split('/')[-1]
+					linkbase = os.path.splitext(linkname)[0]
+					cik = item[ "edgar_ciknumber" ]
+					zipfname = target_dir+cik+'-'+linkbase+"-xbrl.zip"
+					if os.path.isfile( zipfname ):
+						print( "Local copy already exists" )
+					else:
+						edgarNamespace = {'edgar': 'http://www.sec.gov/Archives/edgar'}
+						currentItem = list(root.iter( "item" ))[itemIndex]
+						xbrlFiling = currentItem.find( "edgar:xbrlFiling", edgarNamespace )
+						xbrlFilesItem = xbrlFiling.find( "edgar:xbrlFiles", edgarNamespace )
+						xbrlFiles = xbrlFilesItem.findall( "edgar:xbrlFile", edgarNamespace )
+						if not os.path.exists(  target_dir+"temp" ):
+							os.makedirs( target_dir+"temp" )
+						zf = zipfile.ZipFile( zipfname, "w" )
+						try:
+							for xf in xbrlFiles:
+								xfurl = xf.get( "{http://www.sec.gov/Archives/edgar}url" )
+								if xfurl.endswith( (".xml",".xsd") ):
+									targetfname = target_dir+"temp/"+xfurl.split('/')[-1]
+									retry_counter = 3
+									while retry_counter > 0:
+										good_read = downloadfile( xfurl, targetfname )
+										if good_read:
+											break
+										else:
+											print( "Retrying:", retry_counter )
+											retry_counter -= 1
+									zf.write( targetfname, xfurl.split('/')[-1], zipfile.ZIP_DEFLATED )
+									os.remove( targetfname )
+						finally:
+							zf.close()
+							os.rmdir( target_dir+"temp" )
+			except KeyError as e:
+				print( "Key Error:", e )
+			finally:
+				print( "----------" )
+			itemIndex += 1
 
 def main(argv):
 	year = 2013
 	month = 1
-	from_year = 1999
-	to_year = 1999
-	year_range = False
+	from_year = 2013
+	to_year = 2019
+	year_range = True
 	if not os.path.exists( "sec" ):
 		os.makedirs( "sec" )
 	socket.setdefaulttimeout(10)
