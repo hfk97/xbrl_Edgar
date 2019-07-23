@@ -12,16 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import feedparser
+import pip
+
+try:
+	import sys
+
+except ImportError:
+	pip.main(['install', "sys"])
+	import sys
+
+
+import subprocess
+import importlib
+
+
+
+# function that imports a library if it is installed, else installs it and then imports it
+def getpack(package):
+    try:
+        return (importlib.import_module(package))
+        # import package
+    except ImportError:
+        subprocess.call([sys.executable, "-m", "pip", "install", package])
+        return (importlib.import_module(package))
+        # import package
+
+
 import os.path
-import sys, getopt
+import getopt
 import time
 import socket
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
 import xml.etree.ElementTree as ET
 import zipfile
-import zlib
+zlib=getpack("zlib")
+feedparser=getpack("feedparser")
+
+
 
 def downloadfile( sourceurl, targetfname ):
 	mem_file = ""
