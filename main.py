@@ -32,6 +32,10 @@ def make_soup(url):
 
 soup=make_soup("/Users/Felix/Desktop/table.html")
 
+
+soup2=make_soup("/Users/Felix/Desktop/0000914025-0000914025-13-000015-xbrl/plt-20121229.xml")
+
+
 soup.findAll('p')
 
 
