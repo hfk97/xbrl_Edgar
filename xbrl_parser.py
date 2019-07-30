@@ -6,7 +6,7 @@ class xbrl_filing:
 
     def __init__(self, path):
 
-        lookup = {
+        lookup_balancesheet = {
             "Cash & Cash Equivalents": "us-gaap:CashAndCashEquivalentsAtCarryingValue",
             "ST Investments": "us-gaap:ShortTermInvestments",
             "Accounts & Notes Receiv": "us-gaap:AccountsAndNotesReceivableNet",
@@ -32,12 +32,30 @@ class xbrl_filing:
             "Total Liabilities & Equity": "us-gaap:LiabilitiesAndStockholdersEquity"
         }
 
+        lookup_basics = {
+            "Name": "dei:EntityRegistrantName",
+            "Ticker": "dei:TradingSymbol",
+            "Exchange": "dei:SecurityExchangeName",
+            "Filing": "dei:DocumentType",
+            "Period end date": "dei:DocumentPeriodEndDate",
+            "CommonStockOutstanding": "dei:EntityCommonStockSharesOutstanding"
+        }
+
         problems = []
 
         with open(path) as file:
             text = file.read().replace("\n", "")
 
-        for i in lookup.values():
+
+        for i in lookup_basics.values():
+            entry = re.compile("<" + i + "[^<]*</" + i + ">")
+            if entry.search(text) is not None:
+                self.elements.append(xbrl_basic(entry.search(text).group(0)))
+            else:
+                # print(i)
+                problems.append(i)
+
+        for i in lookup_balancesheet.values():
             entry = re.compile("<" + i + "[^<]*</" + i + ">")
             if entry.search(text) is not None:
                 while entry.search(text) is not None:
@@ -48,7 +66,42 @@ class xbrl_filing:
                 # print(i)
                 problems.append(i)
 
+
+
         print("The following xbrl elements could not be found in file " + path + " :" + str(problems))
+
+
+
+
+
+class xbrl_basic:
+
+    name=""
+    context="basics"
+    value=""
+
+    def __init__(self,load):
+        main_load = re.compile(r'^\s*<.*:.*"?>([-a-zA-Z\d])+')
+
+
+
+
+        load = load.replace('>', ' ')
+        load = load.replace('=', ':')
+        load = load.replace("<", "")
+        load = load.replace("/", " ")
+        load=load.split()
+
+
+        for n, string in enumerate(load):
+            print(string)
+            if "dei:" in string:
+                self.name = string
+
+            if n == len(load) - 2:
+                self.value=string
+
+
 
 
 class xbrl_element:
@@ -75,7 +128,7 @@ class xbrl_element:
 
         decimal = float(0)
         for n, string in enumerate(load):
-            if "dei:" in string or "us-gaap:" in string:
+            if "us-gaap:" in string:
                 self.name = string
 
             if "contextRef:" in string:
@@ -102,3 +155,8 @@ d=xbrl_filing("/Users/Felix/Desktop/xml/form10qq219_htm.xml")
 
 for i in d.elements:
     print(i.name,i.value,i.context)
+
+
+
+#Todo write print funcitons for the classes
+
