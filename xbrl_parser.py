@@ -6,22 +6,49 @@ class xbrl_filing:
 
     def __init__(self, path):
 
-        starttagopen = re.compile('\s*<(us-gaap|dei):')
-        #starttagopen = re.compile('\s*<(?!plt)(?!/?xbrli)(?!/?xbrldi).*:')
-        endtagfind = re.compile(r'.*</\s*([a-zA-Z][-.a-zA-Z0-9:_]*)\s*>$')
-        oneliner = [starttagopen, endtagfind]
+        lookup = {
+            "Cash & Cash Equivalents": "us-gaap:CashAndCashEquivalentsAtCarryingValue",
+            "ST Investments": "us-gaap:ShortTermInvestments",
+            "Accounts & Notes Receiv": "us-gaap:AccountsAndNotesReceivableNet",
+            "Inventories": "us-gaap:InventoryNet",
+            "Total Current Assets": "us-gaap:Assets",
+            "Property, Plant & Equip, Net": "us-gaap:PropertyPlantAndEquipmentNet",
+            "LT Investments & Receivables": "us-gaap:LongTermInvestmentsAndReceivablesNet",
+            "Total Noncurrent Assets": "us-gaap:OtherAssetsNoncurrent",
+            "ST Debt": "us-gaap:ShorttermDebtFairValue",
+            "Other ST Liabilities": "us-gaap:OtherLiabilitiesCurrent",
+            "Total Current Liabilities": "us-gaap:LiabilitiesCurrent",
+            "LT Debt": "us-gaap:LongTermDebtFairValue",
+            "Other LT Liabilities": "us-gaap:OtherLiabilitiesNoncurrent",
+            "Total Noncurrent Liabilities": "us-gaap:LiabilitiesNoncurrent",
+            "Total Liabilities": "us-gaap:Liabilities",
+            "Preferred Equity and Hybrid Capital": "us-gaap:PreferredStockValue",
+            "Common Stock": "us-gaap:CommonStockValue",
+            "Additional Paid in Capital": "us-gaap:AdditionalPaidInCapital",
+            "Treasury Stock": "us-gaap:TreasuryStockCommonValue",
+            "Retained Earnings": "us-gaap:RetainedEarningsAccumulatedDeficit",
+            "Minority/Non Controlling Interest": "us-gaap:MinorityInterest",
+            "Total Equity": "us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+            "Total Liabilities & Equity": "us-gaap:LiabilitiesAndStockholdersEquity"
+        }
 
+        problems = []
 
-        for i in open(path):
-            if all(pattern.match(i) is not None for pattern in oneliner):
+        with open(path) as file:
+            text = file.read().replace("\n", "")
 
-                try:
-                    #xbrl_element(i)
-                    self.elements.append(xbrl_element(i))
-                except AttributeError as e:
-                    if "TextBlock" not in i:
-                        print(str(e),i)
+        for i in lookup.values():
+            entry = re.compile("<" + i + "[^<]*</" + i + ">")
+            if entry.search(text) is not None:
+                while entry.search(text) is not None:
+                    self.elements.append(xbrl_element(entry.search(text).group(0)))
+                    text = text.replace(entry.search(text).group(0), ' ')
 
+            else:
+                # print(i)
+                problems.append(i)
+
+        print("The following xbrl elements could not be found in file " + path + " :" + str(problems))
 
 
 class xbrl_element:
@@ -70,24 +97,8 @@ class xbrl_element:
 
 
 
-
-paths=["/Users/Felix/Desktop/0000002488-19-000045-xbrl/amd-20190330.xml"]
-
-for i in paths:
-    d=xbrl_filing(i)
-
+d=xbrl_filing("/Users/Felix/Desktop/xml/form10qq219_htm.xml")
 
 
 for i in d.elements:
     print(i.name,i.value,i.context)
-
-
-test="""<us-gaap:AccretionAmortizationOfDiscountsAndPremiumsInvestments contextRef="D2013Q3YTD" decimals="-3" id="Fact-304EE17EF9393141C8EF3E3D746D1DBB" unitRef="usd">-858000</us-gaap:AccretionAmortizationOfDiscountsAndPremiumsInvestments>"""
-
-bla=xbrl_element(test)
-
-starttagopen = re.compile('\s*<(us-gaap|dei):')
-
-a="<us-gaap:AccretionAmortizationOfDiscountsAndPr"
-
-print(starttagopen.match(a) is not None)
