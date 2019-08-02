@@ -96,64 +96,86 @@ def draw_comp():
     return SP500[random.randint(0,len(SP500))]
 
 
-def get_tex(comp):
+def get_tex():
+
+    comp=draw_comp()
 
     if "." in comp:
         comp=comp.replace(".","")
 
-        url = "https://sec.report/Ticker/"+ comp
+    url = "https://sec.report/Ticker/"+ comp
 
-        soup = make_soup(url)
+    print(url)
 
-
-
-        for table in soup.findAll('table'):
-            allrows = []
-            # print(table)
-            for row in table.findAll('tr'):
-                rowdata = []
-                for column in row.findAll('td'):
-                    if len(column.findAll('a', href=True)) != 0:
-                        rowdata.append("https://www.sec.gov/" + column.findAll('a', href=True)[0]['href'])
-                    else:
-                        rowdata.append(column.text)
-                    # print(column.text)
-                allrows.append(rowdata)
-
-            for i in allrows:
-                try:
-                    if i[0] == '10-K' | i[0] == '10-Q':
-
-                            minisoup = make_soup(i[1])
-
-                            # print("level 2")
-
-                            for table in minisoup.findAll('table'):
-                                allrows = []
-                                # print(table)
-                                for row in table.findAll('tr'):
-                                    if "10-K" in row.text:
-                                        # print("https://www.sec.gov/" + row.findAll('a', href=True)[0]["href"])
-                                        newlink="https://www.sec.gov/" + row.findAll('a', href=True)[0]["href"]
-
-                                        #print(c, int(i[3][0:4]) - 1,newlink)
-
-
-                except IndexError as e:
-                    print(e)
-                    continue
+    soup = make_soup(url)
 
 
 
+    for table in soup.findAll('table'):
+        allrows = []
+        # print(table)
+        for row in table.findAll('tr'):
+            rowdata = []
+            for column in row.findAll('td'):
+                if len(column.findAll('a', href=True)) != 0:
+                    rowdata.append("https://sec.report" + column.findAll('a', href=True)[0]['href'])
+                else:
+                    rowdata.append(column.text)
+                #print(column.text)
+            allrows.append(rowdata)
 
 
 
-        #ToDo navigate to xml file of 10-K/10-Q
+        for i in allrows:
+            try:
+                if i[1] == '10-K' or i[1] == '10-Q':
+
+                        print(i[0])
+
+                        minisoup = make_soup(i[0])
 
 
-    try:
-        tex
-    except:
-        tex="testphase"
+                        for table in minisoup.findAll('table'):
+                            for row in table.findAll('tr'):
 
-    return tex
+                                if "EX-101.INS" in row.text or "XML" in row.text:
+                                    print(row.text)
+                                    print(row.findAll('a', href=True)[0]['href'])
+
+                                    headers = {
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'}
+                                    req = Request(row.findAll('a', href=True)[0]['href'], headers=headers)
+
+                                    try:
+
+                                        page = urllib.request.urlopen(req)  # conntect to website
+
+                                        tex = page.read().decode('utf-8').replace("\n", "")
+                                        print("Text extracted.\n")
+                                        return tex
+
+                                    except:
+                                        print("An error occured with the final data request.")
+
+
+
+
+            except IndexError as e:
+                #print(e)
+                continue
+
+    #if the program runs till here it means that for the specified ticker the latest 10-Q/K filing has no XML/XBRL file
+    #so we just call this function again
+    return get_tex()
+
+
+
+
+
+    #def main():
+
+
+
+
+    #if __name__ == "main":
+
