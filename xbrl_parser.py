@@ -1,84 +1,5 @@
 import re
 
-class xbrl_filing:
-
-    elements=[]
-
-    def __init__(self, path):
-
-        lookup_balancesheet = {
-            "Cash & Cash Equivalents": "us-gaap:CashAndCashEquivalentsAtCarryingValue",
-            "ST Investments": "us-gaap:ShortTermInvestments",
-            "Accounts & Notes Receiv": "us-gaap:AccountsAndNotesReceivableNet",
-            "Inventories": "us-gaap:InventoryNet",
-            "Total Current Assets": "us-gaap:Assets",
-            "Property, Plant & Equip, Net": "us-gaap:PropertyPlantAndEquipmentNet",
-            "LT Investments & Receivables": "us-gaap:LongTermInvestmentsAndReceivablesNet",
-            "Total Noncurrent Assets": "us-gaap:OtherAssetsNoncurrent",
-            "ST Debt": "us-gaap:ShorttermDebtFairValue",
-            "Other ST Liabilities": "us-gaap:OtherLiabilitiesCurrent",
-            "Total Current Liabilities": "us-gaap:LiabilitiesCurrent",
-            "LT Debt": "us-gaap:LongTermDebtFairValue",
-            "Other LT Liabilities": "us-gaap:OtherLiabilitiesNoncurrent",
-            "Total Noncurrent Liabilities": "us-gaap:LiabilitiesNoncurrent",
-            "Total Liabilities": "us-gaap:Liabilities",
-            "Preferred Equity and Hybrid Capital": "us-gaap:PreferredStockValue",
-            "Common Stock": "us-gaap:CommonStockValue",
-            "Additional Paid in Capital": "us-gaap:AdditionalPaidInCapital",
-            "Treasury Stock": "us-gaap:TreasuryStockCommonValue",
-            "Retained Earnings": "us-gaap:RetainedEarningsAccumulatedDeficit",
-            "Minority/Non Controlling Interest": "us-gaap:MinorityInterest",
-            "Total Equity": "us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
-            "Total Liabilities & Equity": "us-gaap:LiabilitiesAndStockholdersEquity"
-        }
-
-        lookup_basics = {
-            "Name": "dei:EntityRegistrantName",
-            "Ticker": "dei:TradingSymbol",
-            "Exchange": "dei:SecurityExchangeName",
-            "Filing": "dei:DocumentType",
-            "Period end date": "dei:DocumentPeriodEndDate",
-            "CommonStockOutstanding": "dei:EntityCommonStockSharesOutstanding"
-        }
-
-        problems = []
-
-        with open(path) as file:
-            text = file.read().replace("\n", "")
-
-
-        for i in lookup_basics.values():
-            entry = re.compile("<" + i + "[^<]*</" + i + ">")
-            if entry.search(text) is not None:
-                self.elements.append(xbrl_basic(entry.search(text).group(0)))
-            else:
-                # print(i)
-                problems.append(i)
-
-        for i in lookup_balancesheet.values():
-            entry = re.compile("<" + i + "[^<]*</" + i + ">")
-            if entry.search(text) is not None:
-                while entry.search(text) is not None:
-                    self.elements.append(xbrl_element(entry.search(text).group(0)))
-                    text = text.replace(entry.search(text).group(0), ' ')
-
-
-            else:
-                # print(i)
-                problems.append(i)
-
-
-
-        print("The following xbrl elements could not be found in file " + path + " :" + str(problems)+". \n")
-
-    def print(self):
-        for i in self.elements:
-            i.print()
-
-
-
-
-
 class xbrl_basic:
 
     name=""
@@ -104,6 +25,9 @@ class xbrl_basic:
 
     def print(self):
         print(self.name, self.value, self.context)
+
+    def export(self):
+        return self.name, self.value, self.context
 
 
 
@@ -154,20 +78,8 @@ class xbrl_element:
     def print(self):
         print(self.name, self.value, self.context)
 
-
-
-testrun=xbrl_filing("/Users/Felix/Desktop/xml/form10qq219_htm.xml")
-
-testrun.print()
-
-
-
-#Todo write print funcitons for the classes
-
-
-import sys
-
-sys.exit()
+    def export(self):
+        return self.name, self.value, self.context
 
 
 
@@ -238,9 +150,15 @@ class xbrl_filing:
 
 
 
-        print("The following xbrl elements could not be found in file " + path + " :" + str(problems))
+        print("The following xbrl elements could not be found:" + str(problems))
 
     def print(self):
         for i in self.elements:
             i.print()
 
+    def export(self):
+        data=[]
+        for i in self.elements:
+            data.append(i.export())
+
+        return data
